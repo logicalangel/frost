@@ -9,6 +9,8 @@
 package frost_test
 
 import (
+	"github.com/bytemare/frost/dkg"
+	"github.com/bytemare/frost/model"
 	"testing"
 
 	group "github.com/bytemare/crypto"
@@ -125,7 +127,7 @@ func TestFrost(t *testing.T) {
 	testAll(t, func(t2 *testing.T, configuration *frost.Configuration) {
 		g := configuration.Ciphersuite.Group
 
-		privateKeyShares, _, groupPublicKey := SimulateDKG(configuration, max, threshold)
+		privateKeyShares, _, groupPublicKey := dkg.SimulateDKG(configuration, max, threshold)
 		configuration.GroupPublicKey = groupPublicKey
 
 		// Create Participants
@@ -174,8 +176,8 @@ func TestFrost(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		singleSig := frost.Sign(configuration.Ciphersuite, message, groupSecretKey)
-		if !frost.Verify(configuration.Ciphersuite, message, singleSig, groupPublicKey) {
+		singleSig := model.Sign(configuration.Ciphersuite, message, groupSecretKey)
+		if !model.Verify(configuration.Ciphersuite, message, singleSig, groupPublicKey) {
 			t2.Fatal()
 		}
 	})

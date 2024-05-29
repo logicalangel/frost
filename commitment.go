@@ -27,8 +27,8 @@ type Commitment struct {
 	BindingNonce *group.Element
 }
 
-// Encode returns the serialized byte encoding of a participant's commitment.
-func (c Commitment) Encode() []byte {
+// Bytes returns the serialized byte encoding of a participant's commitment.
+func (c Commitment) Bytes() []byte {
 	id := c.Identifier.Encode()
 	hNonce := c.HidingNonce.Encode()
 	bNonce := c.BindingNonce.Encode()
@@ -41,35 +41,58 @@ func (c Commitment) Encode() []byte {
 	return out
 }
 
-// DecodeCommitment attempts to deserialize the encoded commitment given as input, and to return it.
-func DecodeCommitment(cs Ciphersuite, data []byte) (*Commitment, error) {
+// FromBytes deserialize the input, and to fill the commitment object.
+func (c Commitment) FromBytes(cs Ciphersuite, data []byte) error {
 	g := cs.Configuration().Ciphersuite.Group
 	scalarLength := g.ScalarLength()
 	elementLength := g.ElementLength()
 
 	if len(data) != scalarLength+2*elementLength {
-		return nil, errDecodeCommitmentLength
-	}
-
-	c := &Commitment{
-		Identifier:   g.NewScalar(),
-		HidingNonce:  g.NewElement(),
-		BindingNonce: g.NewElement(),
+		return errDecodeCommitmentLength
 	}
 
 	if err := c.Identifier.Decode(data[:scalarLength]); err != nil {
-		return nil, fmt.Errorf("failed to decode commitment identifier: %w", err)
+		return fmt.Errorf("failed to decode commitment identifier: %w", err)
 	}
 
-	if err := c.HidingNonce.Decode(data[:scalarLength]); err != nil {
-		return nil, fmt.Errorf("failed to decode commitment hiding nonce: %w", err)
+	if err := c.HidingNonce.Decode(data[scalarLength : scalarLength+elementLength]); err != nil {
+		return fmt.Errorf("failed to decode commitment hiding nonce: %w", err)
 	}
 
-	if err := c.BindingNonce.Decode(data[:scalarLength]); err != nil {
-		return nil, fmt.Errorf("failed to decode commitment binding nonce: %w", err)
+	if err := c.BindingNonce.Decode(data[scalarLength+elementLength : scalarLength+2*elementLength]); err != nil {
+		return fmt.Errorf("failed to decode commitment binding nonce: %w", err)
 	}
 
-	return c, nil
+	return nil
+}
+
+func (c Commitment) IsEqual(b *Commitment) bool {
+	if c.Identifier.Equal(b.Identifier) != 1 {
+		return false
+	}
+
+	if c.HidingNonce.Equal(b.HidingNonce) != 1 {
+		return false
+	}
+
+	if c.BindingNonce.Equal(b.BindingNonce) != 1 {
+		return false
+	}
+
+	return true
+}
+
+// NewCommitmentFromBytes attempts to deserialize the encoded commitment given as input, and to return it.
+func NewCommitmentFromBytes(cs Ciphersuite, data []byte) (*Commitment, error) {
+	c := &Commitment{
+		Identifier:   cs.Configuration().Ciphersuite.Group.NewScalar(),
+		HidingNonce:  cs.Configuration().Ciphersuite.Group.NewElement(),
+		BindingNonce: cs.Configuration().Ciphersuite.Group.NewElement(),
+	}
+
+	err := c.FromBytes(cs, data)
+
+	return c, err
 }
 
 // CommitmentList is a sortable list of commitments.
@@ -96,8 +119,8 @@ func (c CommitmentList) IsSorted() bool {
 	return slices.IsSortedFunc(c, cmpID)
 }
 
-// Encode serializes a whole commitment list.
-func (c CommitmentList) Encode() []byte {
+// Bytes serializes a whole commitment list.
+func (c CommitmentList) Bytes() []byte {
 	var encoded []byte
 
 	for _, l := range c {

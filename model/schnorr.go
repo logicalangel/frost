@@ -6,7 +6,7 @@
 // LICENSE file in the root directory of this source tree or at
 // https://spdx.org/licenses/MIT.html
 
-package frost
+package model
 
 import (
 	"fmt"
@@ -48,8 +48,8 @@ func (s *Signature) Decode(g group.Group, encoded []byte) error {
 	return nil
 }
 
-// challenge computes the per-message challenge.
-func challenge(cs internal.Ciphersuite, r, pk *group.Element, msg []byte) *group.Scalar {
+// Challenge computes the per-message challenge.
+func Challenge(cs internal.Ciphersuite, r, pk *group.Element, msg []byte) *group.Scalar {
 	return cs.H2(internal.Concatenate(r.Encode(), pk.Encode(), msg))
 }
 
@@ -62,7 +62,7 @@ func Sign(cs internal.Ciphersuite, msg []byte, key *group.Scalar) *Signature {
 	r := cs.Group.NewScalar().Random()
 	R := cs.Group.Base().Multiply(r)
 	pk := cs.Group.Base().Multiply(key)
-	c := challenge(cs, R, pk, msg)
+	c := Challenge(cs, R, pk, msg)
 	z := computeZ(r, c, key)
 
 	return &Signature{
@@ -73,7 +73,7 @@ func Sign(cs internal.Ciphersuite, msg []byte, key *group.Scalar) *Signature {
 
 // Verify returns whether the signature of the message msg is valid under the public key pk.
 func Verify(cs internal.Ciphersuite, msg []byte, signature *Signature, pk *group.Element) bool {
-	c := challenge(cs, signature.R, pk, msg)
+	c := Challenge(cs, signature.R, pk, msg)
 	l := cs.Group.Base().Multiply(signature.Z)
 	r := signature.R.Add(pk.Copy().Multiply(c))
 

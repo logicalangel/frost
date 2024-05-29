@@ -11,11 +11,11 @@ package frost_test
 import (
 	"encoding/hex"
 	"fmt"
-
 	group "github.com/bytemare/crypto"
+	"github.com/bytemare/frost/dkg"
+	"github.com/bytemare/frost/model"
 
 	"github.com/bytemare/frost"
-	"github.com/bytemare/frost/dkg"
 )
 
 var (
@@ -50,7 +50,7 @@ func Example_dkg() {
 
 	// Step 3: First, collect all round1Data from all other participants. Then call Continue() on each participant
 	// providing them with the compiled data.
-	accumulatedRound1Data := make([]*dkg.Round1Data, 0, maximumAmountOfParticipants)
+	accumulatedRound1Data := make([]*model.Round1Data, 0, maximumAmountOfParticipants)
 	accumulatedRound1Data = append(accumulatedRound1Data, round1Data)
 
 	// This will return a dedicated package for each other participant that must be sent to them over a secure channel.
@@ -187,7 +187,7 @@ func Example_coordinator() {
 
 	signature := coordinator.Aggregate(commitments, message, signatureShares[:])
 
-	if !frost.Verify(configuration.Ciphersuite, message, signature, groupPublicKey) {
+	if !model.Verify(configuration.Ciphersuite, message, signature, groupPublicKey) {
 		fmt.Println("invalid signature")
 		// At this point one should try to identify which participant's signature share is invalid and act on it.
 		// This verification is done as follows:

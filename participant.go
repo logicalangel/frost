@@ -11,6 +11,7 @@ package frost
 import (
 	"errors"
 	"fmt"
+	"github.com/bytemare/frost/model"
 
 	group "github.com/bytemare/crypto"
 	secretsharing "github.com/bytemare/secret-sharing"
@@ -53,8 +54,8 @@ func (p *Participant) Backup() []byte {
 		p.ParticipantInfo.Lambda.Encode())
 }
 
-// RecoverParticipant attempts to deserialize the encoded backup into a Participant.
-func RecoverParticipant(c Ciphersuite, backup []byte) (*Participant, error) {
+// NewParticipantFromBytes attempts to deserialize the encoded backup into a Participant.
+func NewParticipantFromBytes(c Ciphersuite, backup []byte) (*Participant, error) {
 	if !c.Available() {
 		return nil, internal.ErrInvalidCiphersuite
 	}
@@ -126,7 +127,7 @@ func (p *Participant) Sign(msg []byte, list CommitmentList) (*SignatureShare, er
 	p.Lambda = lambdaID.Copy()
 
 	// Compute per message challenge
-	challenge := challenge(p.Ciphersuite, groupCommitment, p.Configuration.GroupPublicKey, msg)
+	challenge := model.Challenge(p.Ciphersuite, groupCommitment, p.Configuration.GroupPublicKey, msg)
 
 	// Compute the signature share
 	sigShare := p.Nonce[0].Add(
@@ -150,7 +151,7 @@ func (p *Participant) computeBindingFactors(l CommitmentList, message []byte) in
 	}
 
 	h := p.Configuration.Ciphersuite.H4(message)
-	encodedCommitHash := p.Configuration.Ciphersuite.H5(l.Encode())
+	encodedCommitHash := p.Configuration.Ciphersuite.H5(l.Bytes())
 	rhoInputPrefix := internal.Concatenate(p.GroupPublicKey.Encode(), h, encodedCommitHash)
 
 	bindingFactorList := make(internal.BindingFactorList, len(l))
@@ -195,8 +196,8 @@ type SignatureShare struct {
 	SignatureShare *group.Scalar
 }
 
-// Encode returns a compact byte encoding of the signature share.
-func (s SignatureShare) Encode() []byte {
+// Bytes returns a compact byte encoding of the signature share.
+func (s SignatureShare) Bytes() []byte {
 	id := s.Identifier.Encode()
 	share := s.SignatureShare.Encode()
 

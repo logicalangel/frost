@@ -12,6 +12,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"github.com/bytemare/frost/model"
 	"os"
 	"path/filepath"
 	"testing"
@@ -164,7 +165,7 @@ func (v test) test(t *testing.T) {
 	}
 
 	// Sanity Check
-	if !frost.Verify(conf.Ciphersuite, v.Inputs.Message, sig, groupPublicKey) {
+	if !model.Verify(conf.Ciphersuite, v.Inputs.Message, sig, groupPublicKey) {
 		t.Fatal()
 	}
 }

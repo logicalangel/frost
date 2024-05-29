@@ -6,28 +6,28 @@
 // LICENSE file in the root directory of this source tree or at
 // https://spdx.org/licenses/MIT.html
 
-package frost_test
+package dkg_test
 
 import (
+	"github.com/bytemare/frost/model"
 	"testing"
 
 	group "github.com/bytemare/crypto"
 	secretsharing "github.com/bytemare/secret-sharing"
 
 	"github.com/bytemare/frost"
-	"github.com/bytemare/frost/dkg"
 	"github.com/bytemare/frost/internal"
 )
 
 // testUnit holds a participant and its return and input values during the protocol.
 type testUnit struct {
-	participant       *dkg.Participant
-	r1Data            *dkg.Round1Data
+	participant       *Participant
+	r1Data            *model.Round1Data
 	secret            *group.Scalar
 	verificationShare *group.Element
 	publicKey         *group.Element
-	r2OutputData      []*dkg.Round2Data
-	r2InputData       []*dkg.Round2Data
+	r2OutputData      []*Round2Data
+	r2InputData       []*Round2Data
 }
 
 // TestDKG verifies
@@ -48,8 +48,8 @@ func TestDKG(t *testing.T) {
 	for i := 0; i < maxSigners; i++ {
 		id := internal.IntegerToScalar(conf.Ciphersuite.Group, i+1)
 		units[i] = &testUnit{
-			participant: dkg.NewParticipant(conf.Ciphersuite, id, maxSigners, len(quals)),
-			r2InputData: make([]*dkg.Round2Data, 0, maxSigners-1),
+			participant: NewParticipant(conf.Ciphersuite, id, maxSigners, len(quals)),
+			r2InputData: make([]*Round2Data, 0, maxSigners-1),
 		}
 	}
 
@@ -59,7 +59,7 @@ func TestDKG(t *testing.T) {
 	}
 
 	// Step 2: assemble packages.
-	r1Data := make([]*dkg.Round1Data, maxSigners)
+	r1Data := make([]*model.Round1Data, maxSigners)
 	for i, unit := range units {
 		r1Data[i] = unit.r1Data
 	}
@@ -101,7 +101,7 @@ func TestDKG(t *testing.T) {
 
 	// Verify individual verification shares.
 	for _, unit := range units {
-		verifPk := dkg.ComputeVerificationShare(g, unit.participant.Identifier, r1Data)
+		verifPk := ComputeVerificationShare(g, unit.participant.Identifier, r1Data)
 		if verifPk.Equal(unit.verificationShare) != 1 {
 			t.Fatal("invalid verification key")
 		}
@@ -150,17 +150,17 @@ func TestDKG_InvalidPOK(t *testing.T) {
 	threshold := 1
 
 	one := g.NewScalar().One()
-	p1 := dkg.NewParticipant(conf.Ciphersuite, one, maxSigners, threshold)
+	p1 := NewParticipant(conf.Ciphersuite, one, maxSigners, threshold)
 
 	two := g.NewScalar().One().Add(g.NewScalar().One())
-	p2 := dkg.NewParticipant(conf.Ciphersuite, two, maxSigners, threshold)
+	p2 := NewParticipant(conf.Ciphersuite, two, maxSigners, threshold)
 
 	r1P1 := p1.Init()
 	r1P2 := p2.Init()
 
 	r1P2.ProofOfKnowledge.Z = g.NewScalar().Random()
 
-	r1Data := []*dkg.Round1Data{r1P1, r1P2}
+	r1Data := []*model.Round1Data{r1P1, r1P2}
 
 	if _, err := p1.Continue(r1Data); err == nil {
 		t.Fatal("expected error on invalid signature")
@@ -176,23 +176,23 @@ func SimulateDKG(
 	g := conf.Ciphersuite.Group
 
 	// Create participants.
-	participants := make([]*dkg.Participant, maxSigners)
+	participants := make([]*Participant, maxSigners)
 	for i := 0; i < maxSigners; i++ {
 		id := internal.IntegerToScalar(conf.Ciphersuite.Group, i+1)
-		participants[i] = dkg.NewParticipant(conf.Ciphersuite, id, maxSigners, threshold)
+		participants[i] = NewParticipant(conf.Ciphersuite, id, maxSigners, threshold)
 	}
 
 	// Step 1 & 2.
-	r1Data := make([]*dkg.Round1Data, maxSigners)
+	r1Data := make([]*model.Round1Data, maxSigners)
 	for i, p := range participants {
 		r1Data[i] = p.Init()
 	}
 
 	// Step 3 & 4.
-	r2Data := make(map[string][]*dkg.Round2Data)
+	r2Data := make(map[string][]*Round2Data)
 	for _, p := range participants {
 		id := string(p.Identifier.Encode())
-		r2Data[id] = make([]*dkg.Round2Data, 0, maxSigners-1)
+		r2Data[id] = make([]*Round2Data, 0, maxSigners-1)
 	}
 
 	for _, p := range participants {

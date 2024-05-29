@@ -10,6 +10,7 @@ package frost
 
 import (
 	group "github.com/bytemare/crypto"
+	"github.com/bytemare/frost/model"
 	secretsharing "github.com/bytemare/secret-sharing"
 )
 
@@ -26,7 +27,7 @@ func (p *Participant) Aggregate(
 	list CommitmentList,
 	msg []byte,
 	sigShares []*SignatureShare,
-) *Signature {
+) *model.Signature {
 	if !list.IsSorted() {
 		panic("list not sorted")
 	}
@@ -43,7 +44,7 @@ func (p *Participant) Aggregate(
 		z.Add(share.SignatureShare)
 	}
 
-	return &Signature{
+	return &model.Signature{
 		R: groupCommitment,
 		Z: z,
 	}
@@ -76,7 +77,7 @@ func (p *Participant) VerifySignatureShare(
 	commShare := commitment.HidingNonce.Copy().Add(commitment.BindingNonce.Copy().Multiply(bindingFactor))
 
 	// Compute the challenge
-	challenge := challenge(p.Ciphersuite, groupCommitment, p.Configuration.GroupPublicKey, msg)
+	challenge := model.Challenge(p.Ciphersuite, groupCommitment, p.Configuration.GroupPublicKey, msg)
 
 	// Compute the interpolating value
 	participantList := secretsharing.Polynomial(coms.Participants())

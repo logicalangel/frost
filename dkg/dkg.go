@@ -12,41 +12,14 @@ package dkg
 
 import (
 	"encoding/hex"
-	"errors"
 	"fmt"
+	"github.com/bytemare/frost/model"
 
 	group "github.com/bytemare/crypto"
 	secretsharing "github.com/bytemare/secret-sharing"
 
-	"github.com/bytemare/frost"
 	"github.com/bytemare/frost/internal"
 )
-
-var (
-	errRound1DataElements    = errors.New("invalid number of expected round 1 data packets")
-	errRound2DataElements    = errors.New("invalid number of expected round 2 data packets")
-	errRound2InvalidReceiver = errors.New("invalid receiver in round 2 package")
-	errInvalidSignature      = errors.New("invalid signature")
-
-	errCommitmentNotFound      = errors.New("commitment not found for participant")
-	errInvalidSecretShare      = errors.New("invalid secret share received from peer")
-	errVerificationShareFailed = errors.New("failed to compute correct verification share")
-)
-
-// Round1Data is the output data of the Init() function, to be broadcast to all participants.
-type Round1Data struct {
-	ProofOfKnowledge frost.Signature
-	SenderIdentifier *group.Scalar
-	Commitment       []*group.Element
-}
-
-// Round2Data is an output of the Continue() function, to be sent to the Receiver.
-type Round2Data struct {
-	SenderIdentifier *group.Scalar
-
-	ReceiverIdentifier *group.Scalar
-	SecretShare        *group.Scalar
-}
 
 // Participant represent a party in the Distributed Key Generation. Once the DKG completed, all values must be erased.
 type Participant struct {
@@ -79,7 +52,7 @@ func (p *Participant) challenge(id *group.Scalar, pubkey, r *group.Element) *gro
 }
 
 // Init returns a participant's output for the first round, and stores intermediate values internally.
-func (p *Participant) Init() *Round1Data {
+func (p *Participant) Init() *model.Round1Data {
 	// Step 1
 	secretCoefficients := secretsharing.NewPolynomial(uint(p.threshold))
 	for i := 0; i < p.threshold; i++ {
@@ -98,10 +71,10 @@ func (p *Participant) Init() *Round1Data {
 	p.coefficients = secretCoefficients
 	p.publicShare = com[0]
 
-	package1 := &Round1Data{
+	package1 := &model.Round1Data{
 		SenderIdentifier: p.Identifier,
 		Commitment:       com,
-		ProofOfKnowledge: frost.Signature{
+		ProofOfKnowledge: model.Signature{
 			R: r,
 			Z: mu,
 		},
@@ -112,12 +85,12 @@ func (p *Participant) Init() *Round1Data {
 }
 
 // Continue ingests the broadcast data from other peers and returns a dedicated Round2Data structure for each peer.
-func (p *Participant) Continue(r1data []*Round1Data) ([]*Round2Data, error) {
+func (p *Participant) Continue(r1data []*model.Round1Data) ([]*model.Round2Data, error) {
 	if len(r1data) != p.maxSigners {
 		return nil, errRound1DataElements
 	}
 
-	r2data := make([]*Round2Data, 0, len(r1data)-1)
+	r2data := make([]*model.Round2Data, 0, len(r1data)-1)
 
 	for _, r1package := range r1data {
 		if r1package == nil {
@@ -145,7 +118,7 @@ func (p *Participant) Continue(r1data []*Round1Data) ([]*Round2Data, error) {
 
 		// round 2, step 1
 		fil := p.coefficients.Evaluate(p.ciphersuite.Group, peer)
-		r2data = append(r2data, &Round2Data{
+		r2data = append(r2data, &model.Round2Data{
 			SenderIdentifier:   p.Identifier.Copy(),
 			ReceiverIdentifier: peer.Copy(),
 			SecretShare:        fil,
@@ -160,8 +133,8 @@ func (p *Participant) Continue(r1data []*Round1Data) ([]*Round2Data, error) {
 // Finalize ingests the broadcast data from round 1 and the round 2 data destined for the participant,
 // and returns the participant's secret share and verification key, and the group's public key.
 func (p *Participant) Finalize(
-	r1data []*Round1Data,
-	r2data []*Round2Data,
+	r1data []*model.Round1Data,
+	r2data []*model.Round2Data,
 ) (signingShare *group.Scalar, verificationShare, groupPublic *group.Element, err error) {
 	if len(r1data) != p.maxSigners {
 		return nil, nil, nil, errRound1DataElements
@@ -234,7 +207,7 @@ func (p *Participant) Finalize(
 }
 
 // ComputeVerificationShare computes the verification share for participant id given the commitments of round 1.
-func ComputeVerificationShare(g group.Group, id *group.Scalar, r1data []*Round1Data) *group.Element {
+func ComputeVerificationShare(g group.Group, id *group.Scalar, r1data []*model.Round1Data) *group.Element {
 	yi := g.NewElement().Identity()
 
 	for _, p := range r1data {
